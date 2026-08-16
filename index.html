@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#6c5ce7">
+  <meta name="color-scheme" content="light">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>SterrenRekenen</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <header class="topbar">
+      <button id="homeButton" class="icon-btn hidden" type="button" aria-label="Naar hoofdmenu">🏠</button>
+      <div class="brand" aria-label="SterrenRekenen">
+        <span class="brand-star">⭐</span>
+        <span>SterrenRekenen</span>
+      </div>
+      <button id="starCounter" class="star-counter" type="button" aria-label="Voortgang bekijken">
+        <span>⭐</span><strong id="starCount">0</strong>
+      </button>
+      <button id="soundButton" class="icon-btn" type="button" aria-label="Geluid aan of uit">🔊</button>
+    </header>
+
+    <main id="screenHost" class="screen-host" aria-live="polite"></main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <div id="fxLayer" class="fx-layer" aria-hidden="true"></div>
+  </div>
+
+  <template id="homeTemplate">
+    <section class="screen home-screen">
+      <div class="hero-card">
+        <div class="mascot" aria-hidden="true">🚀</div>
+        <div>
+          <h1>Klaar om sterren te verdienen?</h1>
+          <p>Elke goede som is <strong>1 ster</strong>. Met 10 sterren speel je een spelletje!</p>
+        </div>
+      </div>
+
+      <div class="main-choices">
+        <button class="choice-card choice-multiply" data-action="choose-multiply" type="button">
+          <span class="choice-icon">✖</span>
+          <span class="choice-title">Tafels</span>
+          <span class="choice-sub">Tafels van 1 t/m 10</span>
+        </button>
+        <button class="choice-card choice-subtract" data-action="choose-subtract" type="button">
+          <span class="choice-icon">➖</span>
+          <span class="choice-title">Aftrekken</span>
+          <span class="choice-sub">Minsommen tot 100</span>
+        </button>
+      </div>
+
+      <div id="unlockCard" class="unlock-card hidden">
+        <div>
+          <div class="unlock-title">🎉 Spelletje verdiend!</div>
+          <div>Je hebt genoeg sterren.</div>
+        </div>
+        <button class="primary-btn game-btn" data-action="choose-game" type="button">🎮 SPEEL EEN SPELLETJE!</button>
+      </div>
+
+      <div class="home-actions">
+        <button class="secondary-btn" data-action="progress" type="button">📈 Voortgang</button>
+        <button class="secondary-btn" data-action="settings" type="button">⚙️ Instellingen</button>
+      </div>
+    </section>
+  </template>
+
+  <template id="tableTemplate">
+    <section class="screen table-screen">
+      <div class="section-heading">
+        <div>
+          <div class="eyebrow">Tafels</div>
+          <h1>Kies wat je wilt oefenen</h1>
+        </div>
+      </div>
+      <div id="tableGrid" class="table-grid"></div>
+    </section>
+  </template>
+
+  <template id="practiceTemplate">
+    <section class="screen practice-screen">
+      <div class="practice-topline">
+        <span id="practiceModeLabel" class="pill"></span>
+        <span id="streakLabel" class="pill soft">🔥 0 op rij</span>
+      </div>
+
+      <div id="problemCard" class="problem-card">
+        <div id="problemText" class="problem-text">3 × 7 = ?</div>
+        <div id="answerDisplay" class="answer-display" aria-label="Ingevoerd antwoord">&nbsp;</div>
+        <div id="feedbackText" class="feedback-text">Tik je antwoord in</div>
+      </div>
+
+      <div class="keypad" aria-label="Rekentoetsenbord">
+        <button class="key" data-key="1" type="button">1</button>
+        <button class="key" data-key="2" type="button">2</button>
+        <button class="key" data-key="3" type="button">3</button>
+        <button class="key" data-key="4" type="button">4</button>
+        <button class="key" data-key="5" type="button">5</button>
+        <button class="key" data-key="6" type="button">6</button>
+        <button class="key" data-key="7" type="button">7</button>
+        <button class="key" data-key="8" type="button">8</button>
+        <button class="key" data-key="9" type="button">9</button>
+        <button class="key key-back" data-key="back" type="button" aria-label="Wis laatste cijfer">⌫</button>
+        <button class="key" data-key="0" type="button">0</button>
+        <button class="key key-clear" data-key="clear" type="button" aria-label="Wis antwoord">C</button>
+      </div>
+      <button id="submitAnswer" class="primary-btn submit-btn" type="button">KLAAR</button>
+    </section>
+  </template>
+
+  <template id="gameChoiceTemplate">
+    <section class="screen game-choice-screen">
+      <div class="section-heading centered">
+        <div>
+          <div class="eyebrow">Beloning</div>
+          <h1>Kies een spelletje!</h1>
+          <p>Na het spel gaan er 10 sterren van je voorraad af.</p>
+        </div>
+      </div>
+      <div id="gameChoiceGrid" class="game-choice-grid"></div>
+    </section>
+  </template>
+
+  <template id="gameTemplate">
+    <section class="screen game-screen">
+      <div class="game-hud">
+        <div>
+          <div id="gameTitle" class="game-title">Spel</div>
+          <div id="gameInstruction" class="game-instruction"></div>
+        </div>
+        <div class="hud-box">⏱ <strong id="gameTime">30</strong></div>
+        <div class="hud-box">🏆 <strong id="gameScore">0</strong></div>
+      </div>
+      <div id="gameArena" class="game-arena"></div>
+    </section>
+  </template>
+
+  <template id="resultTemplate">
+    <section class="screen result-screen">
+      <div class="result-card">
+        <div class="result-emoji">🏆</div>
+        <div class="eyebrow">Spel afgelopen</div>
+        <h1 id="resultTitle">Goed gespeeld!</h1>
+        <p class="result-score">Score: <strong id="resultScore">0</strong></p>
+        <p id="resultStars" class="result-stars"></p>
+        <button class="primary-btn wide-btn" data-action="continue-practice" type="button">➕ VERDER REKENEN</button>
+        <button class="secondary-btn wide-btn" data-action="home" type="button">🏠 Hoofdmenu</button>
+      </div>
+    </section>
+  </template>
+
+  <template id="progressTemplate">
+    <section class="screen info-screen">
+      <div class="info-card">
+        <div class="eyebrow">Voortgang</div>
+        <h1>Wat heb je al gedaan?</h1>
+        <div id="progressStats" class="stats-grid"></div>
+        <button class="primary-btn wide-btn" data-action="home" type="button">KLAAR</button>
+      </div>
+    </section>
+  </template>
+
+  <template id="settingsTemplate">
+    <section class="screen info-screen">
+      <div class="info-card">
+        <div class="eyebrow">Instellingen</div>
+        <h1>Maak het fijn voor jou</h1>
+        <div class="settings-list">
+          <button id="settingsSound" class="setting-row" data-action="toggle-sound" type="button">
+            <span>Geluid</span><strong>🔊 Aan</strong>
+          </button>
+          <button id="fullscreenButton" class="setting-row" data-action="fullscreen" type="button">
+            <span>Volledig scherm</span><strong>⛶ Open</strong>
+          </button>
+          <button id="installButton" class="setting-row hidden" data-action="install" type="button">
+            <span>App installeren</span><strong>📲 Installeren</strong>
+          </button>
+          <button class="setting-row danger-row" data-action="reset-progress" type="button">
+            <span>Voortgang wissen</span><strong>🗑 Wissen</strong>
+          </button>
+        </div>
+        <p class="small-note">Alles wordt alleen op dit apparaat opgeslagen. Er is geen account en er worden geen gegevens verstuurd.</p>
+        <button class="primary-btn wide-btn" data-action="home" type="button">KLAAR</button>
+      </div>
+    </section>
+  </template>
+
+  <script src="math.js" defer></script>
+  <script src="games.js" defer></script>
+  <script src="app.js" defer></script>
+</body>
+</html>
