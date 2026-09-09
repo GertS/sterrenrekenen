@@ -5,21 +5,29 @@
 })(typeof window !== 'undefined' ? window : globalThis, function () {
   'use strict';
 
-  function makeMultiplyProblem(selectedTable = null, lastProblemKey = '') {
+  function makeMultiplyProblem(selectedTables = null, lastProblemKey = '') {
+    const tables = Array.isArray(selectedTables)
+      ? selectedTables.filter(table => Number.isInteger(table) && table >= 1 && table <= 10)
+      : Number.isInteger(selectedTables) && selectedTables >= 1 && selectedTables <= 10
+        ? [selectedTables]
+        : [];
     for (let tries = 0; tries < 20; tries++) {
-      let a, b;
-      if (selectedTable) {
+      let a, b, table = null;
+      if (tables.length) {
+        table = tables[Math.floor(Math.random() * tables.length)];
         const other = 1 + Math.floor(Math.random() * 10);
-        if (Math.random() < 0.5) { a = selectedTable; b = other; }
-        else { a = other; b = selectedTable; }
+        if (Math.random() < 0.5) { a = table; b = other; }
+        else { a = other; b = table; }
       } else {
         a = 1 + Math.floor(Math.random() * 10);
         b = 1 + Math.floor(Math.random() * 10);
       }
       const key = `m:${a}x${b}`;
-      if (key !== lastProblemKey) return { a, b, answer: a * b, text: `${a} × ${b} = ?`, key };
+      if (key !== lastProblemKey) return { a, b, table, answer: a * b, text: `${a} × ${b} = ?`, key };
     }
-    return { a: 2, b: 2, answer: 4, text: '2 × 2 = ?', key: 'm:2x2' };
+    const table = tables[0] || 2;
+    const other = table === 2 ? 3 : 2;
+    return { a: table, b: other, table: tables.length ? table : null, answer: table * other, text: `${table} × ${other} = ?`, key: `m:${table}x${other}` };
   }
 
   function makeSubtractProblem(lastProblemKey = '') {

@@ -117,7 +117,7 @@
         special,
         dead: false
       };
-      el.addEventListener('pointerdown', e => {
+      el.addEventListener('click', e => {
         e.preventDefault();
         if (b.dead || !running) return;
         b.dead = true;
@@ -174,7 +174,7 @@
       btn.type = 'button';
       btn.className = 'mole-target';
       btn.setAttribute('aria-label', 'Tik het diertje');
-      btn.addEventListener('pointerdown', e => {
+      btn.addEventListener('click', e => {
         e.preventDefault();
         if (!running || active !== i || !btn.classList.contains('up')) return;
         setScore(getScore() + 1);
@@ -304,7 +304,7 @@
         const btn = document.createElement('button');
         btn.type='button'; btn.className='memory-card'; btn.dataset.index=index; btn.dataset.symbol=symbol;
         btn.setAttribute('aria-label','Schatkist');
-        btn.addEventListener('pointerdown', e => { e.preventDefault(); flip(btn); });
+        btn.addEventListener('click', e => { e.preventDefault(); flip(btn); });
         grid.appendChild(btn);
         return btn;
       });

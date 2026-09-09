@@ -23,7 +23,8 @@
   let state = loadState();
   let currentScreen = 'home';
   let practiceMode = null;
-  let selectedTable = null;
+  let selectedTables = [];
+  let pendingTableSelection = [];
   let problem = null;
   let answerBuffer = '';
   let wrongAttempts = 0;
@@ -36,6 +37,8 @@
   let gameCleanup = null;
   let deferredInstallPrompt = null;
   let audioCtx = null;
+  let retryQueue = [];
+  let nextProblemTimer = null;
 
   function loadState() {
     try {
@@ -61,6 +64,8 @@
   }
 
   function renderTemplate(id) {
+    clearTimeout(nextProblemTimer);
+    nextProblemTimer = null;
     // Overlays staan buiten screenHost; ruim ze bij elke schermwissel op.
     document.querySelector('.reward-modal')?.remove();
     const tpl = document.getElementById(id);
@@ -79,6 +84,7 @@
   function showTableChoice() {
     stopActiveGame(false);
     currentScreen = 'tables';
+    pendingTableSelection = [];
     renderTemplate('tableTemplate');
     const grid = $('#tableGrid');
     for (let n=1; n<=10; n++) {
@@ -87,23 +93,48 @@
       btn.className = 'table-btn' + (state.practicedTables.includes(n) ? ' done' : '');
       btn.textContent = `× ${n}`;
       btn.dataset.table = String(n);
+      btn.setAttribute('aria-pressed', 'false');
       grid.appendChild(btn);
     }
     const all = document.createElement('button');
-    all.type='button'; all.className='table-btn all'; all.dataset.table='all'; all.textContent='✨ ALLE TAFELS';
+    all.type='button'; all.className='table-btn all'; all.dataset.table='all'; all.textContent='✨ ALLE TAFELS'; all.setAttribute('aria-pressed','false');
     grid.appendChild(all);
     updateChrome();
   }
 
-  function startPractice(mode, table = null) {
+  function toggleTableSelection(value) {
+    if (value === 'all') {
+      pendingTableSelection = pendingTableSelection.length === 10 ? [] : Array.from({length:10},(_,i)=>i+1);
+    } else {
+      const table = Number(value);
+      pendingTableSelection = pendingTableSelection.includes(table)
+        ? pendingTableSelection.filter(item => item !== table)
+        : [...pendingTableSelection, table].sort((a,b)=>a-b);
+    }
+    document.querySelectorAll('[data-table]').forEach(btn => {
+      const selected = btn.dataset.table === 'all'
+        ? pendingTableSelection.length === 10
+        : pendingTableSelection.includes(Number(btn.dataset.table));
+      btn.classList.toggle('selected', selected);
+      btn.setAttribute('aria-pressed', String(selected));
+    });
+    $('#startTablesButton').disabled = pendingTableSelection.length === 0;
+  }
+
+  function startPractice(mode, tables = []) {
     stopActiveGame(false);
     currentScreen = 'practice';
     practiceMode = mode;
-    selectedTable = table;
+    selectedTables = mode === 'multiply' ? [...tables] : [];
+    retryQueue = [];
     streak = 0;
     renderTemplate('practiceTemplate');
     const label = $('#practiceModeLabel');
-    if (mode === 'multiply') label.textContent = table ? `✖ Tafel van ${table}` : '✖ Alle tafels';
+    if (mode === 'multiply') {
+      label.textContent = selectedTables.length === 10
+        ? '✖ Alle tafels'
+        : `✖ Tafels van ${selectedTables.join(', ')}`;
+    }
     else label.textContent = '➖ Aftrekken tot 100';
     makeNextProblem();
     updateChrome();
@@ -111,7 +142,14 @@
 
   function makeNextProblem() {
     answerBuffer=''; wrongAttempts=0; lockedAnswer=false;
-    const next = practiceMode === 'multiply' ? makeMultiplyProblem() : makeSubtractProblem();
+    const dueIndex = retryQueue.findIndex(item => item.remaining <= 0);
+    let next;
+    if (dueIndex >= 0) {
+      next = retryQueue.splice(dueIndex, 1)[0].problem;
+    } else {
+      next = practiceMode === 'multiply' ? makeMultiplyProblem() : makeSubtractProblem();
+    }
+    retryQueue.forEach(item => item.remaining--);
     problem=next; lastProblemKey=next.key;
     const card=$('#problemCard');
     if (!card) return;
@@ -123,7 +161,7 @@
   }
 
   function makeMultiplyProblem() {
-    return window.MathTrainer.makeMultiplyProblem(selectedTable, lastProblemKey);
+    return window.MathTrainer.makeMultiplyProblem(selectedTables, lastProblemKey);
   }
 
   function makeSubtractProblem() {
@@ -152,8 +190,9 @@
     lockedAnswer=true; streak++;
     if (practiceMode==='multiply') {
       state.correctMultiply++;
-      if (selectedTable && !state.practicedTables.includes(selectedTable)) {
-        state.practicedTables.push(selectedTable); state.practicedTables.sort((a,b)=>a-b);
+      const practicedTable = problem.table;
+      if (practicedTable && !state.practicedTables.includes(practicedTable)) {
+        state.practicedTables.push(practicedTable); state.practicedTables.sort((a,b)=>a-b);
       }
     } else state.correctSubtract++;
     state.stars++;
@@ -169,27 +208,23 @@
       setTimeout(()=>{ confetti(46); sound('unlock'); },140);
       showToast('🎮 Je hebt een spelletje verdiend!');
     }
-    setTimeout(() => {
+    nextProblemTimer=setTimeout(() => {
       makeNextProblem();
       if (justUnlocked && currentScreen === 'practice') showRewardPrompt();
     }, 650);
   }
 
   function handleWrong() {
-    wrongAttempts++; streak=0;
-    const messages=['Bijna! Probeer nog eens.','Nog een keertje!','Je kunt het! Probeer opnieuw.'];
+    lockedAnswer=true; wrongAttempts++; streak=0;
+    retryQueue.push({ problem: {...problem}, remaining: 2 });
+    saveState();
     const card=$('#problemCard');
     card.classList.remove('try-again'); void card.offsetWidth; card.classList.add('try-again');
-    let msg=messages[(wrongAttempts-1)%messages.length];
-    if (wrongAttempts>=3) {
-      msg += practiceMode === 'multiply'
-        ? ` Hint: denk aan de tafel van ${problem.a}.`
-        : ` Hint: tel vanaf ${problem.b} door tot ${problem.a}.`;
-    }
-    $('#feedbackText').textContent=msg;
+    $('#feedbackText').textContent=`Het juiste antwoord is ${problem.answer}. Deze som komt straks terug.`;
     $('#streakLabel').textContent='🔥 0 op rij';
-    answerBuffer=''; $('#answerDisplay').innerHTML='&nbsp;';
+    $('#answerDisplay').textContent=String(problem.answer);
     sound('softBad');
+    nextProblemTimer=setTimeout(makeNextProblem,1600);
   }
 
 
@@ -385,8 +420,9 @@
       case 'settings': showSettings(); break;
       case 'home': showHome(); break;
       case 'continue-practice':
-        if (practiceMode) startPractice(practiceMode,selectedTable); else showHome();
+        if (practiceMode) startPractice(practiceMode,selectedTables); else showHome();
         break;
+      case 'start-tables': startPractice('multiply',pendingTableSelection); break;
       case 'toggle-sound': toggleSound(); break;
       case 'fullscreen': requestFullscreen(); break;
       case 'install': installApp(); break;
@@ -395,14 +431,11 @@
     }
   }
 
-  document.addEventListener('pointerdown', e => {
-    const actionEl=e.target.closest('[data-action]'); if(actionEl) { sound('click'); handleAction(actionEl.dataset.action); return; }
-    const table=e.target.closest('[data-table]'); if(table) { sound('click'); const value=table.dataset.table; startPractice('multiply',value==='all'?null:Number(value)); return; }
-    const game=e.target.closest('[data-game]'); if(game) { sound('click'); startGame(game.dataset.game); return; }
-    const key=e.target.closest('[data-key]'); if(key) { e.preventDefault(); keypadInput(key.dataset.key); }
-  });
-
   document.addEventListener('click', e => {
+    const actionEl=e.target.closest('[data-action]'); if(actionEl) { sound('click'); handleAction(actionEl.dataset.action); return; }
+    const table=e.target.closest('[data-table]'); if(table) { sound('click'); toggleTableSelection(table.dataset.table); return; }
+    const game=e.target.closest('[data-game]'); if(game) { sound('click'); startGame(game.dataset.game); return; }
+    const key=e.target.closest('[data-key]'); if(key) { keypadInput(key.dataset.key); return; }
     if (e.target.closest('#submitAnswer')) submitAnswer();
   });
 

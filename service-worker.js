@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'sterrenrekenen-v1.0.1';
+const CACHE_NAME = 'sterrenrekenen-v1.1.0';
 const APP_FILES = [
   './',
   './index.html',
