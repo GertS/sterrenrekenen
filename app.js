@@ -39,6 +39,7 @@
   let audioCtx = null;
   let retryQueue = [];
   let nextProblemTimer = null;
+  let subtractQuestionIndex = 0;
 
   function loadState() {
     try {
@@ -127,6 +128,7 @@
     practiceMode = mode;
     selectedTables = mode === 'multiply' ? [...tables] : [];
     retryQueue = [];
+    subtractQuestionIndex = 0;
     streak = 0;
     renderTemplate('practiceTemplate');
     const label = $('#practiceModeLabel');
@@ -165,7 +167,9 @@
   }
 
   function makeSubtractProblem() {
-    return window.MathTrainer.makeSubtractProblem(lastProblemKey);
+    const step = subtractQuestionIndex % 10 + 1;
+    subtractQuestionIndex++;
+    return window.MathTrainer.makeSubtractProblem(lastProblemKey, step);
   }
 
   function keypadInput(key) {
@@ -241,8 +245,8 @@
     currentScreen='gameChoice'; renderTemplate('gameChoiceTemplate');
     const grid=$('#gameChoiceGrid');
     getGameChoices(3).forEach(game=>{
-      const btn=document.createElement('button'); btn.type='button'; btn.className='game-option'; btn.dataset.game=game.id;
-      btn.innerHTML=`<span class="emoji">${game.emoji}</span><span class="name">${game.name}</span><span class="desc">${game.desc}</span>`;
+      const btn=document.createElement('button'); btn.type='button'; btn.className='game-option' + (game.featured ? ' featured' : ''); btn.dataset.game=game.id;
+      btn.innerHTML=`${game.featured?'<span class="new-badge">NIEUW!</span>':''}<span class="emoji">${game.emoji}</span><span class="name">${game.name}</span><span class="desc">${game.desc}</span>`;
       grid.appendChild(btn);
     });
     updateChrome();
@@ -253,6 +257,8 @@
     const recent=new Set(state.lastGameIds.slice(-2));
     const fresh=all.filter(g=>!recent.has(g.id)).sort(()=>Math.random()-.5);
     const rest=all.filter(g=>recent.has(g.id)).sort(()=>Math.random()-.5);
+    const featuredIndex=fresh.findIndex(g=>g.featured);
+    if(featuredIndex>0) fresh.unshift(fresh.splice(featuredIndex,1)[0]);
     return [...fresh,...rest].slice(0,count);
   }
 
@@ -437,6 +443,19 @@
     const game=e.target.closest('[data-game]'); if(game) { sound('click'); startGame(game.dataset.game); return; }
     const key=e.target.closest('[data-key]'); if(key) { keypadInput(key.dataset.key); return; }
     if (e.target.closest('#submitAnswer')) submitAnswer();
+  });
+
+  document.addEventListener('keydown', e => {
+    if (currentScreen === 'practice') {
+      if (/^\d$/.test(e.key)) { e.preventDefault(); keypadInput(e.key); }
+      else if (e.key === 'Enter') { e.preventDefault(); submitAnswer(); }
+      else if (e.key === 'Backspace') { e.preventDefault(); keypadInput('back'); }
+      else if (e.key === 'Delete' || e.key === 'Escape') { e.preventDefault(); keypadInput('clear'); }
+    } else if (currentScreen === 'tables') {
+      const table = e.key === '0' ? 10 : Number(e.key);
+      if (table >= 1 && table <= 10) { e.preventDefault(); toggleTableSelection(String(table)); }
+      else if (e.key === 'Enter' && pendingTableSelection.length) { e.preventDefault(); startPractice('multiply',pendingTableSelection); }
+    }
   });
 
   homeButton.addEventListener('click',showHome);

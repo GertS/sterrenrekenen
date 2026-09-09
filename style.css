@@ -118,12 +118,19 @@ button:active { transform: translateY(2px) scale(.985); }
 .key-back { background: #ffe6ee; }
 .key-clear { background: #fff0d8; }
 .submit-btn { min-height: 64px; font-size: 22px; }
+.keyboard-hint { display:none; color:var(--muted); font-size:13px; font-weight:800; text-align:center; }
+
+@media (hover:hover) and (pointer:fine) {
+  .keyboard-hint { display:block; }
+}
 
 .game-choice-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; padding-bottom: 18px; }
 .game-option { min-height: 175px; border: 0; border-radius: 28px; padding: 18px; background: var(--card); box-shadow: var(--shadow); cursor: pointer; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
 .game-option .emoji { font-size: 54px; }
 .game-option .name { margin-top: 8px; font-weight: 1000; font-size: 22px; }
 .game-option .desc { margin-top: 5px; color: var(--muted); font-size: 14px; }
+.game-option.featured { position:relative; background:linear-gradient(145deg,#fff5bd,#ffd6f0); box-shadow:inset 0 0 0 4px rgba(255,255,255,.7),var(--shadow); }
+.new-badge { position:absolute; top:10px; right:10px; padding:5px 9px; border-radius:999px; color:white; background:var(--pink); font-size:11px; font-weight:1000; transform:rotate(5deg); }
 
 .game-screen { display: flex; flex-direction: column; min-height: 100%; overflow: hidden; }
 .game-hud { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; margin-bottom: 8px; }
@@ -160,6 +167,28 @@ button:active { transform: translateY(2px) scale(.985); }
 .memory-card.revealed, .memory-card.matched { background:#fff8de; }
 .memory-card.revealed::before, .memory-card.matched::before { content:""; }
 .memory-card.matched { box-shadow:inset 0 0 0 4px rgba(46,204,113,.4),0 6px 12px rgba(76,61,135,.12); }
+
+/* Draakjesfeest */
+.dragon-arena { background:linear-gradient(180deg,#6d5dfc 0%,#b47cff 48%,#ffe59a 100%); padding:14px; display:flex; flex-direction:column; gap:10px; }
+.dragon-top { display:grid; grid-template-columns:auto 1fr auto; gap:12px; align-items:center; min-height:105px; }
+.dragon-friend { font-size:72px; filter:drop-shadow(0 7px 4px rgba(45,42,68,.2)); transform-origin:center bottom; }
+.dragon-friend.happy { animation:dragonHappy .34s ease; }
+.dragon-wish { background:white; border-radius:24px; padding:12px 16px; text-align:center; box-shadow:var(--shadow); font-weight:900; }
+.dragon-wish strong { display:block; font-size:42px; line-height:1.05; }
+.dragon-combo { min-width:82px; color:white; text-align:center; font-weight:1000; text-shadow:0 2px 5px rgba(45,42,68,.25); }
+.dragon-combo strong { display:block; font-size:30px; }
+.dragon-meter { height:16px; background:rgba(255,255,255,.45); border-radius:999px; overflow:hidden; box-shadow:inset 0 2px 5px rgba(45,42,68,.15); }
+.dragon-meter-fill { height:100%; width:0; border-radius:inherit; background:linear-gradient(90deg,#ffd166,#ff6b9f,#6c5ce7,#36b5ff); transition:width .2s ease; }
+.dragon-food-grid { flex:1; display:grid; grid-template-columns:repeat(3,1fr); gap:10px; min-height:220px; }
+.dragon-food { border:0; border-radius:22px; background:rgba(255,255,255,.9); font-size:clamp(40px,8vw,64px); cursor:pointer; box-shadow:0 8px 18px rgba(45,42,68,.16); animation:foodArrive .2s ease both; }
+.dragon-food.good { animation:foodGood .3s ease forwards; }
+.dragon-food.bad { animation:gentleShake .3s ease; background:#ffe0e7; }
+.dragon-fever { position:absolute; inset:0; display:grid; place-items:center; color:white; font-size:clamp(34px,8vw,72px); font-weight:1000; text-align:center; text-shadow:0 5px 12px #8b3dc7; background:rgba(255,107,159,.22); pointer-events:none; animation:feverFlash .65s ease forwards; z-index:8; }
+
+@keyframes dragonHappy { 50%{transform:translateY(-12px) rotate(-7deg) scale(1.12)} }
+@keyframes foodArrive { from{opacity:0;transform:scale(.7) rotate(-5deg)} }
+@keyframes foodGood { to{transform:translateY(-30px) scale(.35);opacity:0} }
+@keyframes feverFlash { 0%{opacity:0;transform:scale(.7)} 30%{opacity:1;transform:scale(1)} 100%{opacity:0;transform:scale(1.15)} }
 
 .info-screen, .result-screen { display:grid; place-items:center; padding:16px 0; }
 .info-card, .result-card { width:min(650px,100%); padding:clamp(20px,5vw,34px); }

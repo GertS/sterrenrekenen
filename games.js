@@ -6,7 +6,8 @@
     { id: 'balloons', name: 'Ballonnen prikken', emoji: '🎈', desc: 'Tik zo veel mogelijk ballonnen stuk.', duration: 30 },
     { id: 'moles', name: 'Diertjes tikken', emoji: '🐹', desc: 'Tik de diertjes zodra ze opduiken.', duration: 30 },
     { id: 'space', name: 'Ruimteschip', emoji: '🚀', desc: 'Pak sterren en ontwijk meteorieten.', duration: 30 },
-    { id: 'memory', name: 'Schatkist-memory', emoji: '🧰', desc: 'Zoek dezelfde schatten bij elkaar.', duration: 45 }
+    { id: 'memory', name: 'Schatkist-memory', emoji: '🧰', desc: 'Zoek dezelfde schatten bij elkaar.', duration: 45 },
+    { id: 'dragon', name: 'Draakjesfeest', emoji: '🐲', desc: 'Voer het draakje het goede hapje en bouw een supercombo!', duration: 35, featured: true }
   ];
 
   const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
@@ -35,6 +36,13 @@
     };
     arena.addEventListener('pointerdown', moveBasket);
     arena.addEventListener('pointermove', e => { if (e.buttons || e.pointerType === 'touch') moveBasket(e); });
+    const moveBasketWithKeys = e => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      e.preventDefault();
+      basketX = clamp(basketX + (e.key === 'ArrowLeft' ? -38 : 38), 0, arena.clientWidth);
+      basket.style.left = `${basketX}px`;
+    };
+    window.addEventListener('keydown', moveBasketWithKeys);
 
     const spawn = () => {
       const bad = Math.random() < 0.18;
@@ -89,6 +97,7 @@
     return () => {
       running = false;
       cancelAnimationFrame(raf);
+      window.removeEventListener('keydown', moveBasketWithKeys);
       arena.replaceWith(arena.cloneNode(false));
     };
   }
@@ -243,6 +252,13 @@
     };
     arena.addEventListener('pointerdown', move);
     arena.addEventListener('pointermove', e => { if (e.buttons || e.pointerType === 'touch') move(e); });
+    const moveWithKeys = e => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      e.preventDefault();
+      shipX = clamp(shipX + (e.key === 'ArrowLeft' ? -38 : 38), 0, arena.clientWidth);
+      ship.style.left = `${shipX}px`;
+    };
+    window.addEventListener('keydown', moveWithKeys);
 
     const spawn = () => {
       const chance = Math.random();
@@ -280,7 +296,7 @@
     raf=requestAnimationFrame(tick);
 
     return () => {
-      running=false; cancelAnimationFrame(raf); items.forEach(i=>i.el.remove()); arena.classList.remove('space-arena');
+      running=false; cancelAnimationFrame(raf); window.removeEventListener('keydown',moveWithKeys); items.forEach(i=>i.el.remove()); arena.classList.remove('space-arena');
     };
   }
 
@@ -335,7 +351,76 @@
     return () => { running=false; clearTimeout(resetTimer); clearTimeout(roundTimer); };
   }
 
-  const starters = { catch:startCatch, balloons:startBalloons, moles:startMoles, space:startSpace, memory:startMemory };
+  function startDragon(ctx) {
+    const { arena, setScore, getScore, sound } = ctx;
+    const foods = ['🍓','🍎','🍌','🍉','🥕','🧁','🍪','🍇','🍒','🍍'];
+    let running = true;
+    let target = '';
+    let combo = 0;
+    let roundTimer = 0;
+    arena.classList.add('dragon-arena');
+    arena.innerHTML = '<div class="dragon-top"><div class="dragon-friend" aria-hidden="true">🐲</div><div class="dragon-wish">Ik wil graag...<strong></strong></div><div class="dragon-combo">COMBO<strong>0</strong></div></div><div class="dragon-meter"><div class="dragon-meter-fill"></div></div><div class="dragon-food-grid"></div>';
+    const dragon = arena.querySelector('.dragon-friend');
+    const wish = arena.querySelector('.dragon-wish strong');
+    const comboLabel = arena.querySelector('.dragon-combo strong');
+    const meter = arena.querySelector('.dragon-meter-fill');
+    const grid = arena.querySelector('.dragon-food-grid');
+
+    const nextRound = () => {
+      if (!running) return;
+      target = pick(foods);
+      wish.textContent = target;
+      const choices = [target];
+      while (choices.length < 6) {
+        const food = pick(foods);
+        if (!choices.includes(food)) choices.push(food);
+      }
+      choices.sort(() => Math.random() - .5);
+      grid.replaceChildren(...choices.map((food, index) => {
+        const btn = document.createElement('button');
+        btn.type = 'button'; btn.className = 'dragon-food'; btn.textContent = food;
+        btn.setAttribute('aria-label', `Geef ${food}`);
+        btn.style.animationDelay = `${index * .025}s`;
+        btn.addEventListener('click', () => choose(btn, food));
+        return btn;
+      }));
+    };
+
+    const choose = (btn, food) => {
+      if (!running || grid.classList.contains('locked')) return;
+      if (food === target) {
+        grid.classList.add('locked');
+        combo++;
+        const fever = combo % 5 === 0;
+        setScore(getScore() + (fever ? 5 : 1));
+        sound(fever ? 'bonus' : 'pop');
+        comboLabel.textContent = String(combo);
+        meter.style.width = `${(combo % 5) * 20}%`;
+        btn.classList.add('good');
+        dragon.classList.remove('happy'); void dragon.offsetWidth; dragon.classList.add('happy');
+        if (fever) {
+          meter.style.width = '100%';
+          const flash = document.createElement('div');
+          flash.className = 'dragon-fever'; flash.textContent = '🌈 SUPERCOMBO! +5 🌈';
+          arena.appendChild(flash); setTimeout(() => flash.remove(), 700);
+        }
+        roundTimer = setTimeout(() => { grid.classList.remove('locked'); nextRound(); }, fever ? 700 : 260);
+      } else {
+        combo = 0; comboLabel.textContent = '0'; meter.style.width = '0';
+        setScore(Math.max(0, getScore() - 1)); sound('softBad');
+        btn.classList.remove('bad'); void btn.offsetWidth; btn.classList.add('bad');
+      }
+    };
+
+    nextRound();
+    return () => {
+      running = false;
+      clearTimeout(roundTimer);
+      arena.classList.remove('dragon-arena');
+    };
+  }
+
+  const starters = { catch:startCatch, balloons:startBalloons, moles:startMoles, space:startSpace, memory:startMemory, dragon:startDragon };
 
   window.MiniGames = {
     catalog,
