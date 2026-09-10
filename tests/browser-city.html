@@ -2,8 +2,10 @@
 <h1>Lokale browsertest</h1><p>Gebruik alleen op de aparte test-origin localhost:8000. Deze knoppen zetten testvoortgang klaar.</p>
 <button id="starter">Test met 240 sterren en startwoning</button>
 <button id="town">Test met gevulde stad</button>
+<button id="tables">Test tijdelijke tafelblokkade</button>
 <button id="zero">Test met nul sterren</button>
 <script src="../city-model.js"></script>
+<script src="../math.js"></script>
 <script>
 function prepare(mode) {
   if(location.hostname !== 'localhost') { document.querySelector('p').textContent='Open deze test op localhost, niet op de preview-origin.'; return; }
@@ -15,8 +17,11 @@ function prepare(mode) {
       const r=M.apply(city,10000,{kind:'buy',type:M.catalog[i++%8].id,x,y});if(!r.error)city=r.city;
     }
   }
-  localStorage.setItem('sterrenrekenen-v1',JSON.stringify({stars:mode==='zero'?0:240,correctMultiply:300,correctSubtract:10,totalAttempts:320,practicedTables:[2,3,4],sound:false,lastGameIds:[],city}));
+  const tablePractice = MathTrainer.tableProgress(null);
+  if(mode==='tables') tablePractice.tables[1] = {attempts:9,mistakes:0,perfect:2,locked:false,others:0};
+  localStorage.setItem('sterrenrekenen-v1',JSON.stringify({tablePractice,stars:mode==='zero'?0:240,correctMultiply:300,correctSubtract:10,totalAttempts:320,practicedTables:[2,3,4],sound:false,lastGameIds:[],city}));
   location.href='../index.html';
 }
+document.querySelector('#tables').onclick=()=>prepare('tables');
 document.querySelector('#starter').onclick=()=>prepare('starter');document.querySelector('#town').onclick=()=>prepare('town');document.querySelector('#zero').onclick=()=>prepare('zero');
 </script></body></html>

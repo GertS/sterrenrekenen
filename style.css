@@ -356,3 +356,6 @@ button:active { transform: translateY(2px) scale(.985); }
 @media (prefers-reduced-motion: reduce) {
   .city-screen, .city-item { animation:none; transition:none; }
 }
+
+.table-btn small { display:block; font-size:12px; line-height:1.35; margin-top:8px; font-weight:600; }
+.table-btn:disabled { opacity:.6; cursor:not-allowed; background:#edeaf4; }
