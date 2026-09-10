@@ -2,6 +2,11 @@
   'use strict';
   const M = window.StarCityModel;
   const ATLAS = 'assets/city-atlas.png';
+  // Visible front tip of each grass base, measured within its atlas cell.
+  // The second atlas row has more transparent space below its tiles.
+  const GROUND_ANCHORS = [0.950, 0.976, 0.965, 0.979, 0.865, 0.874, 0.874, 0.874];
+  const SPRITE_SIZE = 114;
+  const GROUND_TIP_Y = 30;
   // Keep the buildings at their original size; reserve a wider corridor around each plot.
   const HALF_TILE_WIDTH = 92;
   const HALF_TILE_HEIGHT = 46;
@@ -163,8 +168,9 @@
       ctx.globalAlpha = alpha;
       if (atlas.complete && atlas.naturalWidth) {
         const sw = atlas.naturalWidth / 4, sh = atlas.naturalHeight / 2;
-        // Atlas cells share a ground anchor near the bottom. Buildings remain upright.
-        ctx.drawImage(atlas, item.sprite % 4 * sw, Math.floor(item.sprite / 4) * sh, sw, sh, p.x - 57, p.y - 81, 114, 114);
+        // Align the visible grass tip, not the transparent bottom of the atlas cell.
+        const top = p.y + GROUND_TIP_Y - GROUND_ANCHORS[item.sprite] * SPRITE_SIZE;
+        ctx.drawImage(atlas, item.sprite % 4 * sw, Math.floor(item.sprite / 4) * sh, sw, sh, p.x - SPRITE_SIZE / 2, top, SPRITE_SIZE, SPRITE_SIZE);
       } else {
         poly([project(x+.2,y+.2),project(x+.8,y+.2),project(x+.8,y+.8),project(x+.2,y+.8)], '#9dd372');
         ctx.font = '36px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(['🏡','🏢','🌳','🏫','🐄','🌻','🏫','🌷'][item.sprite], p.x, p.y);
