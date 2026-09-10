@@ -74,3 +74,13 @@ node tests/city-wallet.test.cjs
 Dit controleert onder andere alle tegelprijzen, dubbele aankopen, onvoldoende saldo, verbonden wegen, gratis verplaatsen, een volle stad, laden van oudere voortgang en opslagfouten.
 
 Voor browsercontroles kun je `tests/browser-city.html` openen via **localhost** op een lokale server. Die testpagina zet bewust testvoortgang klaar en is daarom gescheiden van de preview op **127.0.0.1**. Gebruik hem niet op een origin met voortgang die je wilt houden. De testpagina wordt niet vooraf offline opgeslagen.
+
+## Tijdelijke tafelblokkade
+
+Elke tafel houdt eigen reeksen van tien beantwoorde sommen bij, ook als meerdere tafels zijn geselecteerd. Na drie foutloze reeksen wordt die tafel tijdelijk geblokkeerd. Reeksen met fouten verhogen de foutloos-teller niet. Tussentijds stoppen of herladen bewaart de gedeeltelijke reeks.
+
+Een tafel komt weer vrij op de volgende lokale kalenderdag, of na zes afgeronde reeksen van andere tafels sinds de blokkade. Die zes reeksen hoeven niet foutloos te zijn en hoeven niet van zes verschillende tafels te komen. Bij vrijgeven begint de teller van die tafel opnieuw. Aftrekken telt hiervoor niet mee. Een nieuwe dag begint alle tafelreeksen opnieuw.
+
+De blokkade geldt voor losse tafelkeuzes, toetsenbordsneltoetsen en bijbehorende herhaalsommen. ‘Alle tafels’ blijft alle tien tafels mengen, inclusief geblokkeerde tafels; goede antwoorden leveren daar normaal sterren op. Deze uitzondering blijft ook gelden bij doorgaan na een minigame. De laatste goede som voor de blokkade levert nog gewoon een ster op. Bestaande sterren en stadsvoortgang blijven behouden.
+
+Controle: `node tests/table-practice.test.cjs`.

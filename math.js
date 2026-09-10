@@ -60,5 +60,41 @@
     return { a: 83, b: 47, step: difficultyStep, answer: 36, text: '83 − 47 = ?', key: 's:83-47' };
   }
 
-  return { makeMultiplyProblem, makeSubtractProblem };
+  function localDay(now = new Date()) {
+    return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+  }
+
+  function tableProgress(value, now = new Date()) {
+    const day = localDay(now);
+    const source = value && value.day === day ? value.tables || {} : {};
+    const tables = {};
+    const integer = (v, max) => Number.isInteger(v) && v >= 0 ? Math.min(v, max) : 0;
+    for (let n = 1; n <= 10; n++) {
+      const t = source[n] || {};
+      tables[n] = { attempts: integer(t.attempts, 9), mistakes: integer(t.mistakes, 9), perfect: integer(t.perfect, 3), locked: t.locked === true, others: integer(t.others, 5) };
+    }
+    return { day, tables };
+  }
+
+  function recordTableAnswer(value, table, correct, now = new Date()) {
+    const progress = tableProgress(value, now);
+    const t = progress.tables[table];
+    if (!t || t.locked) return { progress, completed: false, newlyLocked: false };
+    t.attempts++;
+    if (!correct) t.mistakes++;
+    if (t.attempts < 10) return { progress, completed: false, newlyLocked: false };
+    // Every completed set on another table counts, including sets with mistakes.
+    for (let n = 1; n <= 10; n++) {
+      const other = progress.tables[n];
+      if (n !== table && other.locked && ++other.others >= 6) {
+        progress.tables[n] = { attempts: 0, mistakes: 0, perfect: 0, locked: false, others: 0 };
+      }
+    }
+    if (t.mistakes === 0) t.perfect++;
+    t.attempts = 0; t.mistakes = 0;
+    t.locked = t.perfect >= 3;
+    return { progress, completed: true, newlyLocked: t.locked };
+  }
+
+  return { makeMultiplyProblem, makeSubtractProblem, tableProgress, recordTableAnswer };
 });

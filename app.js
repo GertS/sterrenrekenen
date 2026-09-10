@@ -10,6 +10,7 @@
     practicedTables: [],
     sound: true,
     lastGameIds: [],
+    tablePractice: null,
     city: null
   };
 
@@ -26,6 +27,7 @@
   let cityCleanup = null;
   let practiceMode = null;
   let selectedTables = [];
+  let allTablesMode = false;
   let pendingTableSelection = [];
   let problem = null;
   let answerBuffer = '';
@@ -117,17 +119,33 @@
     updateChrome();
   }
 
+  function availableTables() {
+    state.tablePractice = window.MathTrainer.tableProgress(state.tablePractice);
+    return Array.from({ length: 10 }, (_, i) => i + 1).filter(n => !state.tablePractice.tables[n].locked);
+  }
+
+  function recordPracticeAnswer(correct) {
+    if (practiceMode !== 'multiply') return false;
+    const result = window.MathTrainer.recordTableAnswer(state.tablePractice, problem.table, correct);
+    state.tablePractice = result.progress;
+    if (result.newlyLocked) showToast(`Tafel ${problem.table}: drie foutloze reeksen! Kies nu een andere tafel.`);
+    return result.newlyLocked;
+  }
+
   function showTableChoice() {
     stopActiveGame(false);
     currentScreen = 'tables';
     pendingTableSelection = [];
     renderTemplate('tableTemplate');
+    const available = availableTables();
     const grid = $('#tableGrid');
     for (let n=1; n<=10; n++) {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'table-btn' + (state.practicedTables.includes(n) ? ' done' : '');
-      btn.textContent = `× ${n}`;
+      const progress = state.tablePractice.tables[n];
+      btn.disabled = !available.includes(n);
+      btn.innerHTML = `<span>× ${n}</span>${progress.locked ? `<small>🔒 Morgen vrij, of nog ${6 - progress.others} andere reeksen</small>` : ''}`;
       btn.dataset.table = String(n);
       btn.setAttribute('aria-pressed', 'false');
       grid.appendChild(btn);
@@ -139,10 +157,13 @@
   }
 
   function toggleTableSelection(value) {
+    const available = availableTables();
     if (value === 'all') {
-      pendingTableSelection = pendingTableSelection.length === 10 ? [] : Array.from({length:10},(_,i)=>i+1);
+      pendingTableSelection = pendingTableSelection.length === 10 ? [] : Array.from({length:10}, (_,i) => i + 1);
     } else {
       const table = Number(value);
+      if (!available.includes(table)) { showTableChoice(); return; }
+      pendingTableSelection = pendingTableSelection.filter(n => available.includes(n));
       pendingTableSelection = pendingTableSelection.includes(table)
         ? pendingTableSelection.filter(item => item !== table)
         : [...pendingTableSelection, table].sort((a,b)=>a-b);
@@ -161,7 +182,9 @@
     stopActiveGame(false);
     currentScreen = 'practice';
     practiceMode = mode;
-    selectedTables = mode === 'multiply' ? [...tables] : [];
+    allTablesMode = mode === 'multiply' && new Set(tables).size === 10;
+    selectedTables = mode === 'multiply' ? (allTablesMode ? Array.from({length:10}, (_,i) => i + 1) : tables.filter(n => availableTables().includes(n))) : [];
+    if (mode === 'multiply' && !selectedTables.length) { showTableChoice(); return; }
     retryQueue = [];
     subtractQuestionIndex = 0;
     streak = 0;
@@ -178,6 +201,15 @@
   }
 
   function makeNextProblem() {
+    if (practiceMode === 'multiply') {
+      const available = availableTables();
+      if (!allTablesMode) {
+        selectedTables = selectedTables.filter(n => available.includes(n));
+        retryQueue = retryQueue.filter(item => available.includes(item.problem.table));
+      }
+      if (!selectedTables.length) { showTableChoice(); return; }
+      $('#practiceModeLabel').textContent = allTablesMode ? '✖ Alle tafels' : `✖ Tafels van ${selectedTables.join(', ')}`;
+    }
     answerBuffer=''; wrongAttempts=0; lockedAnswer=false;
     const dueIndex = retryQueue.findIndex(item => item.remaining <= 0);
     let next;
@@ -193,7 +225,7 @@
     card.classList.remove('correct','try-again');
     $('#problemText').textContent=next.text;
     $('#answerDisplay').innerHTML='&nbsp;';
-    $('#feedbackText').textContent='Tik je antwoord in';
+    $('#feedbackText').textContent = practiceMode === 'multiply' && !state.tablePractice.tables[next.table].locked ? `Tafel ${next.table} · som ${state.tablePractice.tables[next.table].attempts + 1}/10 · ${state.tablePractice.tables[next.table].perfect}/3 foutloze reeksen` : 'Tik je antwoord in';
     $('#streakLabel').textContent=`🔥 ${streak} op rij`;
   }
 
@@ -220,6 +252,7 @@
 
   function submitAnswer() {
     if (lockedAnswer || !problem || answerBuffer==='') return;
+    if (practiceMode === 'multiply' && !allTablesMode && !availableTables().includes(problem.table)) { makeNextProblem(); return; }
     state.totalAttempts++;
     const value=Number(answerBuffer);
     if (value===problem.answer) handleCorrect(); else handleWrong();
@@ -235,6 +268,7 @@
       }
     } else state.correctSubtract++;
     state.stars++;
+    const tableLocked = recordPracticeAnswer(true);
     saveState();
     const messages=['Goed zo!','Super!','Knap gedaan!','Yes!','Geweldig!','Topper!'];
     $('#problemCard').classList.add('correct');
@@ -242,7 +276,7 @@
     $('#streakLabel').textContent=`🔥 ${streak} op rij`;
     sound('correct');
     flyStar();
-    const justUnlocked = state.stars % 10 === 0;
+    const justUnlocked = !tableLocked && state.stars % 10 === 0;
     if (justUnlocked) {
       setTimeout(()=>{ confetti(46); sound('unlock'); },140);
       showToast('🎮 Je hebt een spelletje verdiend!');
@@ -255,6 +289,7 @@
 
   function handleWrong() {
     lockedAnswer=true; wrongAttempts++; streak=0;
+    recordPracticeAnswer(false);
     retryQueue.push({ problem: {...problem}, remaining: 2 });
     saveState();
     const card=$('#problemCard');
@@ -502,7 +537,14 @@
     if (e.key !== STORAGE_KEY) return;
     state = loadState(); updateChrome();
     if (currentScreen === 'home') $('#unlockCard').classList.toggle('hidden', state.stars < 10);
+    if (currentScreen === 'tables') showTableChoice();
   });
+
+  function refreshTableDay() {
+    if (currentScreen === 'tables' && state.tablePractice?.day !== window.MathTrainer.tableProgress(null).day) showTableChoice();
+  }
+  window.addEventListener('focus', refreshTableDay);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshTableDay(); });
 
   window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); deferredInstallPrompt=e; if(currentScreen==='settings'){ const b=$('#installButton'); if(b)b.classList.remove('hidden'); } });
   window.addEventListener('appinstalled',()=>{ deferredInstallPrompt=null; showToast('App geïnstalleerd! 🎉'); });
