@@ -49,3 +49,28 @@ Open daarna `http://localhost:8000` in Chrome of Firefox.
 ## Opmerking over updates
 
 De service worker gebruikt een cachenaam (`sterrenrekenen-v1.0.0`). Als je later bestanden sterk wijzigt en een nieuwe versie direct wilt forceren, verander dan die naam bijvoorbeeld in `sterrenrekenen-v1.0.1`.
+
+## Mijn sterrenstad
+
+Via **Mijn sterrenstad** in het hoofdmenu bouw je met dezelfde sterren die je met sommen verdient. Elke speler krijgt één startwoning; bestaande sterren en rekenvoortgang blijven behouden.
+
+- Acht soorten tegels: woning (30), flat (60), park (20), politie (80), boerderij (50), akker (15), school (70) en bloementuin (25 sterren).
+- Kies een tegel, tik op een vrij aangrenzend vak en bevestig met **Bouw voor …**. Pas bij bevestigen worden sterren afgeschreven en wordt de stad opgeslagen.
+- Tik op een bestaande tegel en kies **Verplaatsen**. Dit is gratis; alle tegels moeten verbonden blijven. De wereld biedt 49 plekken.
+- Wegen ontstaan vanzelf. Meer tegels brengen meer auto's en voetgangers. Met de pauzeknop zet je het verkeer stil; bij een voorkeur voor minder beweging begint het gepauzeerd.
+- Sleep de wereld om rond te kijken. Gebruik +/− of het muiswiel om te zoomen, en ⌖ om de hele wereld te zien. Met pijltjestoetsen en Enter kun je ook een vak kiezen.
+- Stad en sterren worden samen lokaal opgeslagen. Als opslaan niet lukt, wordt de aankoop niet uitgevoerd. **Voortgang wissen** wist ook de stad, na bevestiging.
+- De nieuwe bestanden en gebouwillustraties zitten in de offlinecache. Bij een bestaande installatie kan een tweede keer openen nodig zijn om een beschikbare update te zien.
+
+`city-model.js` bevat de bouwregels, `city.js` de winkel en geanimeerde wereld, en `assets/city-atlas.png` de gebouwillustraties. Er zijn geen externe runtimebibliotheken of online accounts nodig.
+
+### Controles voor de stad
+
+```bash
+node tests/city-model.test.cjs
+node tests/city-wallet.test.cjs
+```
+
+Dit controleert onder andere alle tegelprijzen, dubbele aankopen, onvoldoende saldo, verbonden wegen, gratis verplaatsen, een volle stad, laden van oudere voortgang en opslagfouten.
+
+Voor browsercontroles kun je `tests/browser-city.html` openen via **localhost** op een lokale server. Die testpagina zet bewust testvoortgang klaar en is daarom gescheiden van de preview op **127.0.0.1**. Gebruik hem niet op een origin met voortgang die je wilt houden. De testpagina wordt niet vooraf offline opgeslagen.
