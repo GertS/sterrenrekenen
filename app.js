@@ -9,7 +9,8 @@
     totalAttempts: 0,
     practicedTables: [],
     sound: true,
-    lastGameIds: []
+    lastGameIds: [],
+    city: null
   };
 
   const $ = sel => document.querySelector(sel);
@@ -22,6 +23,7 @@
 
   let state = loadState();
   let currentScreen = 'home';
+  let cityCleanup = null;
   let practiceMode = null;
   let selectedTables = [];
   let pendingTableSelection = [];
@@ -45,9 +47,9 @@
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       const parsed = raw ? JSON.parse(raw) : {};
-      return { ...DEFAULT_STATE, ...parsed, practicedTables: Array.isArray(parsed.practicedTables) ? parsed.practicedTables : [], lastGameIds: Array.isArray(parsed.lastGameIds) ? parsed.lastGameIds : [] };
+      return { ...DEFAULT_STATE, ...parsed, city: window.StarCityModel.normalize(parsed.city), stars: Number.isSafeInteger(parsed.stars) && parsed.stars >= 0 ? parsed.stars : 0, practicedTables: Array.isArray(parsed.practicedTables) ? parsed.practicedTables : [], lastGameIds: Array.isArray(parsed.lastGameIds) ? parsed.lastGameIds : [] };
     } catch {
-      return { ...DEFAULT_STATE };
+      return { ...DEFAULT_STATE, city: window.StarCityModel.initial() };
     }
   }
 
@@ -64,7 +66,13 @@
     homeButton.classList.toggle('hidden', currentScreen === 'home');
   }
 
+  function clearCity() {
+    if (cityCleanup) { cityCleanup(); cityCleanup = null; }
+    screenHost.classList.remove('showing-city');
+  }
+
   function renderTemplate(id) {
+    clearCity();
     clearTimeout(nextProblemTimer);
     nextProblemTimer = null;
     // Overlays staan buiten screenHost; ruim ze bij elke schermwissel op.
@@ -79,6 +87,33 @@
     currentScreen = 'home';
     renderTemplate('homeTemplate');
     $('#unlockCard').classList.toggle('hidden', state.stars < 10);
+    updateChrome();
+  }
+
+  function showCity() {
+    stopActiveGame(false);
+    clearTimeout(nextProblemTimer);
+    document.querySelector('.reward-modal')?.remove();
+    clearCity();
+    currentScreen = 'city';
+    screenHost.classList.add('showing-city');
+    screenHost.scrollTop = 0;
+    cityCleanup = window.StarCity.mount(screenHost, {
+      getState: () => state,
+      reload: () => { state = loadState(); updateChrome(); },
+      commit: action => {
+        // Read the shared wallet again before purchasing, also when another tab changed it.
+        const latest = loadState();
+        const result = window.StarCityModel.apply(latest.city, latest.stars, action);
+        if (result.error) { state = latest; updateChrome(); return result; }
+        const next = { ...latest, city: result.city, stars: result.stars };
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); }
+        catch { return { error: 'Opslaan lukt niet. Je sterren zijn niet uitgegeven. Maak opslagruimte vrij en probeer opnieuw.' }; }
+        state = next; updateChrome(); return result;
+      },
+      toast: showToast,
+      sound
+    });
     updateChrome();
   }
 
@@ -236,7 +271,7 @@
     document.querySelector('.reward-modal')?.remove();
     const overlay=document.createElement('div');
     overlay.className='reward-modal';
-    overlay.innerHTML=`<div class="reward-card"><div class="reward-stars">⭐ 🌟 ⭐</div><div class="eyebrow">10 sterren!</div><h2>Spelletje verdiend!</h2><p>Wil je nu spelen of nog een som maken?</p><button class="primary-btn wide-btn" data-action="choose-game" type="button">🎮 SPEEL EEN SPELLETJE!</button><button class="secondary-btn wide-btn" data-action="close-reward" type="button">➕ Nog een som</button></div>`;
+    overlay.innerHTML=`<div class="reward-card"><div class="reward-stars">⭐ 🌟 ⭐</div><div class="eyebrow">10 sterren!</div><h2>Wat ga jij doen?</h2><p>Speel een spelletje of spaar voor jouw stad.</p><button class="secondary-btn wide-btn" data-action="city" type="button">🌷 NAAR MIJN STERRENSTAD</button><button class="primary-btn wide-btn" data-action="choose-game" type="button">🎮 SPEEL EEN SPELLETJE!</button><button class="secondary-btn wide-btn" data-action="close-reward" type="button">➕ Nog een som</button></div>`;
     document.querySelector('#app').appendChild(overlay);
   }
 
@@ -355,7 +390,7 @@
   }
 
   function resetProgress() {
-    const ok=window.confirm('Weet je zeker dat je alle sterren en voortgang wilt wissen?');
+    const ok=window.confirm('Weet je zeker dat je alle sterren, voortgang én je hele stad wilt wissen?');
     if (!ok) return;
     const keepSound=state.sound;
     state={...DEFAULT_STATE,sound:keepSound,practicedTables:[],lastGameIds:[]}; saveState();
@@ -421,6 +456,7 @@
     switch(action) {
       case 'choose-multiply': showTableChoice(); break;
       case 'choose-subtract': startPractice('subtract'); break;
+      case 'city': showCity(); break;
       case 'choose-game': showGameChoice(); break;
       case 'progress': showProgress(); break;
       case 'settings': showSettings(); break;
@@ -459,8 +495,14 @@
   });
 
   homeButton.addEventListener('click',showHome);
-  starCount.addEventListener('click',showProgress);
+  $('#starCounter').addEventListener('click', () => { stopActiveGame(false); showProgress(); });
   soundButton.addEventListener('click',toggleSound);
+
+  window.addEventListener('storage', e => {
+    if (e.key !== STORAGE_KEY) return;
+    state = loadState(); updateChrome();
+    if (currentScreen === 'home') $('#unlockCard').classList.toggle('hidden', state.stars < 10);
+  });
 
   window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); deferredInstallPrompt=e; if(currentScreen==='settings'){ const b=$('#installButton'); if(b)b.classList.remove('hidden'); } });
   window.addEventListener('appinstalled',()=>{ deferredInstallPrompt=null; showToast('App geïnstalleerd! 🎉'); });

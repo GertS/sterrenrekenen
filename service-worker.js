@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'sterrenrekenen-v1.2.0';
+const CACHE_NAME = 'sterrenrekenen-v1.3.2';
 const APP_FILES = [
   './',
   './index.html',
@@ -8,6 +8,9 @@ const APP_FILES = [
   './app.js',
   './math.js',
   './games.js',
+  './city-model.js',
+  './city.js',
+  './assets/city-atlas.png',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png'
